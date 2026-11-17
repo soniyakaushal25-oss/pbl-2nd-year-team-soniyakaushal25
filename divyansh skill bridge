@@ -1,0 +1,413 @@
+// ServiceProvider is also a child of User. Its own data is private (encapsulation).
+class ServiceProvider : public User {
+// private data: only the member functions of this class can change it (encapsulation)
+private:
+    string service;
+    int experience;
+    int charge;
+    bool available;
+    bool acceptingCustomers;
+    int ratingTotal;
+    int ratingCount;
+    string idProof;
+    string about;           // a short introduction written by the provider
+    string workingDays;     // 7 characters for Mon to Sun: '1' = works, '0' = off
+public:
+    ServiceProvider(int id, string name, string phone, string password, int areaNumber,
+                    string service, int experience, int charge, string idProof)
+        : User(id, name, phone, password, areaNumber) {
+        this->service = service;
+        this->experience = experience;
+        this->charge = charge;
+        this->idProof = idProof;
+        available = true;
+        acceptingCustomers = true;
+        ratingTotal = 0;
+        ratingCount = 0;
+        about = "No introduction written yet.";
+        // 7 characters for Mon to Sun: 1 = works, 0 = off (Monday to Friday)
+        workingDays = "1111100";                // Monday to Friday
+    }
+
+    string getService() { return service; }
+    int getExperience() { return experience; }
+    int getCharge() { return charge; }
+    bool isAvailable() { return available; }
+    bool isAcceptingCustomers() { return acceptingCustomers; }
+    string getIdProof() { return idProof; }
+    int getRatingTotal() { return ratingTotal; }
+    int getRatingCount() { return ratingCount; }
+    string getAbout() { return about; }
+    string getWorkingDays() { return workingDays; }
+
+    void setService(string newService) { service = newService; }
+    void setExperience(int newExperience) { experience = newExperience; }
+    void setCharge(int newCharge) { charge = newCharge; }
+    void setAvailable(bool value) { available = value; }
+    void setAcceptingCustomers(bool value) { acceptingCustomers = value; }
+    void setAbout(string newAbout) { about = newAbout; }
+    void setWorkingDays(string newDays) { workingDays = newDays; }
+    void setRating(int total, int count) {
+        ratingTotal = total;
+        ratingCount = count;
+    }
+
+    // a new rating from a review is added to the total
+    void addRating(int rating) {
+        ratingTotal = ratingTotal + rating;
+        ratingCount++;
+    }
+
+    // switches one day on or off (dayNumber 0 = Monday ... 6 = Sunday)
+    void toggleDay(int dayNumber) {
+        if (workingDays[dayNumber] == '1') workingDays[dayNumber] = '0';
+        else workingDays[dayNumber] = '1';
+    }
+
+    // for example "Mon Tue Wed Thu Fri"
+    string getWorkingDaysText() {
+        string text = "";
+        for (int i = 0; i < 7; i++) {
+            if (workingDays[i] == '1') text = text + dayNames[i] + " ";
+        }
+        if (text == "") text = "No working days";
+        return text;
+    }
+
+    // a customer can book only if the provider is available and wants customers
+    bool canTakeBooking() {
+        return available && acceptingCustomers;
+    }
+
+    // average rating = total of ratings / number of ratings
+    double getRating() {
+        if (ratingCount == 0) return 0;
+        // (double) keeps the decimal part
+        return (double) ratingTotal / ratingCount;
+    }
+
+    string getRole() { return "Service Provider"; }
+
+    void showProfile() {
+        cout << "\n----- Provider Profile -----" << endl;
+        cout << "ID                  : " << id << endl;
+        cout << "Name                : " << name << endl;
+        cout << "Phone               : " << phone << endl;
+        cout << "Service provided    : " << service << endl;
+        cout << "About               : " << about << endl;
+        cout << "Experience          : " << experience << " years" << endl;
+        cout << "Charge              : Rs " << charge << endl;
+        cout << "Area                : " << areaNames[areaNumber] << endl;
+        cout << "Working days        : " << getWorkingDaysText() << endl;
+        cout << "Available now       : " << (available ? "Yes" : "No") << endl;
+        cout << "Accepting customers : " << (acceptingCustomers ? "Yes" : "No") << endl;
+        if (ratingCount == 0) cout << "Rating              : No ratings yet" << endl;
+        else cout << "Rating              : " << fixed << setprecision(1) << getRating()
+                  << " out of 5 (" << ratingCount << " ratings)" << endl;
+    }
+};
+
+// Box and linked list of all providers.
+class ProviderNode {
+public:
+    ServiceProvider* provider;
+    ProviderNode* next;
+};
+
+// Linked list of all providers
+class ProviderList {
+private:
+    ProviderNode* head;
+    int count;
+public:
+    ProviderList() {
+        head = NULL;
+        count = 0;
+    }
+    int getCount() { return count; }
+    int nextId() { return count + 1; }
+    ProviderNode* getHead() { return head; }
+
+    void add(ServiceProvider* provider) {
+        // make a new box of the linked list
+        ProviderNode* node = new ProviderNode;
+        node->provider = provider;
+        node->next = NULL;
+
+        // the list is empty: the new box becomes the first box
+        if (head == NULL) {
+            head = node;
+        } else {
+            ProviderNode* current = head;
+            // walk to the last box
+            while (current->next != NULL) {
+                current = current->next;
+            }
+            current->next = node;
+        }
+        count++;
+    }
+
+    // linear search by phone number
+    ServiceProvider* findByPhone(string phone) {
+        ProviderNode* current = head;
+        while (current != NULL) {
+            if (current->provider->getPhone() == phone) return current->provider;
+            current = current->next;
+        }
+        return NULL;
+    }
+
+    // linear search by ID
+    ServiceProvider* findById(int id) {
+        ProviderNode* current = head;
+        while (current != NULL) {
+            if (current->provider->getId() == id) return current->provider;
+            current = current->next;
+        }
+        return NULL;
+    }
+};
+
+ProviderList providers;
+
+// True if a provider with this ID exists (used by the favourites menu).
+bool providerExists(int providerId) {
+    return providers.findById(providerId) != NULL;
+}
+
+// Prints one provider in one line (used for the favourites list)
+void showProviderLine(int providerId) {
+    ServiceProvider* provider = providers.findById(providerId);
+    if (provider == NULL) return;
+    cout << "  ID " << provider->getId() << " | " << provider->getName() << " | " << provider->getService()
+         << " | " << areaNames[provider->getAreaNumber()] << " | Rs " << provider->getCharge()
+         << " | rating " << fixed << setprecision(1) << provider->getRating() << endl;
+}
+
+// Creates a new provider account.
+void registerProvider() {
+    cout << "\n===== Provider Registration =====" << endl;
+    string name = getText("Enter your full name: ");
+
+    string phone = getText("Enter your 10 digit phone number: ");
+    // ask again until the phone has exactly 10 digits
+    while (!isValidPhone(phone)) {
+        cout << "A phone number must have exactly 10 digits." << endl;
+        phone = getText("Enter your 10 digit phone number: ");
+    }
+    if (providers.findByPhone(phone) != NULL) {
+        cout << "This phone number is already registered. Please login." << endl;
+        return;
+    }
+
+    string password = getText("Create a password (at least 4 characters): ");
+    // ask again until the password has at least 4 characters
+    while (!isValidPassword(password)) {
+        cout << "The password must have at least 4 characters." << endl;
+        password = getText("Create a password (at least 4 characters): ");
+    }
+    int areaNumber = chooseArea();
+    string service = chooseService();
+    // read the details of the provider
+    int experience = getNumber("Years of experience: ", 0, 50);
+    int charge = getNumber("Your charge in Rs per visit: ", 1, 50000);
+    string about = getText("Write a short introduction about yourself: ");
+    string idProof = getText("Enter your ID proof number: ");
+
+    // only a verified person can register (checked in Member 6's function)
+    if (!verifyProvider(idProof, name)) {
+        cout << "Registration cancelled." << endl;
+        return;
+    }
+
+    // create the provider object
+    ServiceProvider* provider = new ServiceProvider(providers.nextId(), name, phone, password,
+                                                    areaNumber, service, experience, charge, idProof);
+    // store the introduction
+    provider->setAbout(about);
+    // add the provider to the linked list
+    providers.add(provider);
+    cout << "\nRegistration successful. Customers can now find you." << endl;
+}
+
+// Login with three attempts (same logic as the receiver).
+ServiceProvider* loginProvider() {
+    cout << "\n===== Provider Login =====" << endl;
+    // the user gets 3 attempts
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        string phone = getText("Phone number: ");
+        string password = getText("Password: ");
+        ServiceProvider* provider = providers.findByPhone(phone);
+        if (provider != NULL && provider->checkLogin(phone, password)) {
+            cout << "\nWelcome, " << provider->getName() << "!" << endl;
+            // login successful
+            return provider;
+        }
+        cout << "Wrong phone number or password. Attempts left: " << (3 - attempt) << endl;
+    }
+    // 3 wrong attempts: no login
+    return NULL;
+}
+
+// Password change: old password check, new password validation, setPassword().
+void changeProviderPassword(ServiceProvider* provider) {
+    string oldPassword = getText("Enter your old password: ");
+    if (!provider->checkLogin(provider->getPhone(), oldPassword)) {
+        cout << "Old password is wrong." << endl;
+        return;
+    }
+    string newPassword = getText("Enter your new password (at least 4 characters): ");
+    if (!isValidPassword(newPassword)) {
+        cout << "The password must have at least 4 characters. Password not changed." << endl;
+        return;
+    }
+    provider->setPassword(newPassword);
+    cout << "Password changed." << endl;
+}
+
+// The provider switches the working days on or off
+void changeWorkingDays(ServiceProvider* provider) {
+    int day;
+    do {
+        cout << "\nYour working days: " << provider->getWorkingDaysText() << endl;
+        cout << "1 Mon   2 Tue   3 Wed   4 Thu   5 Fri   6 Sat   7 Sun" << endl;
+        // the provider types a day number (1 = Monday ... 7 = Sunday)
+        day = getNumber("Enter a day number to switch it on or off (0 = done): ", 0, 7);
+        // switch that day on or off (day numbers start at 0 inside)
+        if (day != 0) provider->toggleDay(day - 1);
+    } while (day != 0);
+    cout << "Working days saved: " << provider->getWorkingDaysText() << endl;
+}
+
+// Menu after the provider has logged in
+void providerHome(ServiceProvider* provider) {
+    int choice;
+    do {
+        cout << "\n========== PROVIDER MENU (" << provider->getName() << ") ==========" << endl;
+        // notification: how many requests are waiting (Member 4's function)
+        int pending = countPendingRequests(provider->getId());
+        if (pending > 0) cout << "Notification: you have " << pending << " pending booking request(s)." << endl;
+
+        cout << "1. View my profile" << endl;
+        cout << "2. Change the service I provide" << endl;
+        cout << "3. Change my charge" << endl;
+        cout << "4. Update my experience" << endl;
+        cout << "5. Change my area" << endl;
+        cout << "6. Write about myself" << endl;
+        cout << "7. Set my working days" << endl;
+        cout << "8. Set availability (available / not available)" << endl;
+        cout << "9. Accept new customers (yes / no)" << endl;
+        cout << "10. View booking requests" << endl;
+        cout << "11. Mark an accepted booking as completed" << endl;
+        cout << "12. View my reviews" << endl;
+        cout << "13. My dashboard (bookings and rating)" << endl;
+        cout << "14. Change my password" << endl;
+        cout << "0. Logout" << endl;
+        // read the menu choice
+        choice = getNumber("Enter your choice: ", 0, 14);
+
+        if (choice == 1) {
+            provider->showProfile();
+        } else if (choice == 2) {
+            provider->setService(chooseService());
+            cout << "Service changed to " << provider->getService() << "." << endl;
+        } else if (choice == 3) {
+            provider->setCharge(getNumber("Enter your new charge in Rs: ", 1, 50000));
+            cout << "Charge changed." << endl;
+        } else if (choice == 4) {
+            provider->setExperience(getNumber("Years of experience: ", 0, 50));
+            cout << "Experience updated." << endl;
+        } else if (choice == 5) {
+            provider->setAreaNumber(chooseArea());
+            cout << "Area changed to " << areaNames[provider->getAreaNumber()] << "." << endl;
+        } else if (choice == 6) {
+            provider->setAbout(getText("Write a short introduction about yourself: "));
+            cout << "Introduction saved." << endl;
+        } else if (choice == 7) {
+            changeWorkingDays(provider);
+        } else if (choice == 8) {
+            // ! changes yes to no and no to yes
+            provider->setAvailable(!provider->isAvailable());       // yes becomes no, no becomes yes
+            if (provider->isAvailable()) cout << "You are now AVAILABLE." << endl;
+            else cout << "You are now NOT AVAILABLE." << endl;
+        } else if (choice == 9) {
+            provider->setAcceptingCustomers(!provider->isAcceptingCustomers());
+            if (provider->isAcceptingCustomers()) cout << "You are now ACCEPTING new customers." << endl;
+            else cout << "You are NOT accepting new customers now." << endl;
+        } else if (choice == 10) {
+            // options 10 to 14 call functions of other members
+            showRequests(provider);
+        } else if (choice == 11) {
+            markCompleted(provider);
+        } else if (choice == 12) {
+            showProviderReviews(provider->getId());
+        } else if (choice == 13) {
+            showProviderDashboard(provider);
+        } else if (choice == 14) {
+            changeProviderPassword(provider);
+        }
+    } while (choice != 0);
+}
+
+// First menu of the provider side: login or register
+void providerStart() {
+    int choice;
+    do {
+        cout << "\n----- SERVICE PROVIDER -----" << endl;
+        cout << "1. Login" << endl;
+        cout << "2. Register as a new provider" << endl;
+        cout << "0. Back" << endl;
+        choice = getNumber("Enter your choice: ", 0, 2);
+
+        if (choice == 1) {
+            ServiceProvider* provider = loginProvider();
+            if (provider != NULL) providerHome(provider);
+        } else if (choice == 2) {
+            registerProvider();
+        }
+    } while (choice != 0);
+}
+
+// Test cases of the provider module. Temporary objects are used, real data is not changed.
+void testProviderModule() {
+    cout << "\n--- Provider module tests ---" << endl;
+
+    // a temporary provider for the tests
+    ServiceProvider* ravi = new ServiceProvider(1, "Ravi", "9000022222", "pass1234", 0, "Plumber", 5, 300, "SB0000");
+    check("A new provider is available and accepting customers", ravi->canTakeBooking());
+
+    ravi->setAvailable(false);
+    check("A provider who is not available cannot take a booking", !ravi->canTakeBooking());
+    ravi->setAvailable(true);
+    ravi->setAcceptingCustomers(false);
+    check("A provider who is not accepting customers cannot take a booking", !ravi->canTakeBooking());
+
+    check("Rating is 0 when there are no ratings", ravi->getRating() == 0);
+    // two ratings: 5 and 3, the average must be 4
+    ravi->addRating(5);
+    ravi->addRating(3);
+    check("Average of ratings 5 and 3 is 4", ravi->getRating() == 4.0);
+    check("Rating count is 2", ravi->getRatingCount() == 2);
+
+    ravi->setCharge(450);
+    check("Charge can be changed", ravi->getCharge() == 450);
+    ravi->setService("Electrician");
+    check("Service can be changed", ravi->getService() == "Electrician");
+
+    check("Default working days are Monday to Friday", ravi->getWorkingDays() == "1111100");
+    ravi->toggleDay(6);
+    check("Sunday can be switched on", ravi->getWorkingDays() == "1111101");
+    ravi->toggleDay(0);
+    check("Monday can be switched off", ravi->getWorkingDays() == "0111101");
+
+    // a temporary list for the search tests
+    ProviderList testList;
+    testList.add(ravi);
+    check("Provider is found by ID", testList.findById(1) == ravi);
+    check("Provider is found by phone number", testList.findByPhone("9000022222") == ravi);
+    check("Unknown ID is not found", testList.findById(99) == NULL);
+
+    // free the temporary object
+    delete ravi;
+}
